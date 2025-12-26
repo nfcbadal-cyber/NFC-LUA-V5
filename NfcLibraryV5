@@ -1,0 +1,101 @@
+-- ==========================================
+-- Blue & Purple Responsive Roblox Hub Library
+-- ==========================================
+
+local Library = {}
+
+-- Services
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
+
+-- Create ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BluePurpleHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0.5, 0, 0.6, 0) -- Medium size
+MainFrame.Position = UDim2.new(0.25, 0, 0.2, 0) -- Center-ish
+MainFrame.BackgroundColor3 = Color3.fromRGB(60, 0, 255) -- Purple
+MainFrame.BorderSizePixel = 0
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.Parent = ScreenGui
+
+-- Gradient
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 170, 255)), -- Blue
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 0, 255))  -- Purple
+}
+Gradient.Rotation = 45
+Gradient.Parent = MainFrame
+
+-- Rounded Corners
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = MainFrame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "BluePurple Hub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 24
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Parent = MainFrame
+
+-- Container for buttons
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Size = UDim2.new(1, -20, 1, -60)
+ButtonContainer.Position = UDim2.new(0, 10, 0, 50)
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Parent = MainFrame
+
+-- Automatic layout
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.FillDirection = Enum.FillDirection.Vertical
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.Parent = ButtonContainer
+
+-- Button creation function
+function Library:CreateButton(text, callback)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0.8, 0, 0, 40)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 120, 255) -- Blue
+    Button.Text = text
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 18
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = Button
+
+    Button.Parent = ButtonContainer
+
+    Button.MouseButton1Click:Connect(function()
+        pcall(callback)
+    end)
+end
+
+-- Auto adjust for mobile or resized screen
+local function updateSize()
+    local screenSize = PlayerGui.AbsoluteSize
+    MainFrame.Size = UDim2.new(0.5, 0, 0.6, 0)
+    if screenSize.X < 600 then -- small screens like mobile
+        MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
+        MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+    end
+end
+
+updateSize()
+PlayerGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSize)
+
+return Library
