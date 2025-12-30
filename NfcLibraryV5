@@ -1,5 +1,7 @@
 -- ==========================================
--- Blue & Purple Responsive Roblox Hub Library
+-- NFC Library V5 - BluePurple Hub
+-- Fully self-contained
+-- CoreGui safe, mobile-ready
 -- ==========================================
 
 local Library = {}
@@ -7,95 +9,128 @@ local Library = {}
 -- Services
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 
--- Create ScreenGui
+-- Remove old UI if exists
+pcall(function()
+    CoreGui:FindFirstChild("NfcLibraryV5_UI"):Destroy()
+end)
+
+-- ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BluePurpleHub"
+ScreenGui.Name = "NfcLibraryV5_UI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
+pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0.5, 0, 0.6, 0) -- Medium size
-MainFrame.Position = UDim2.new(0.25, 0, 0.2, 0) -- Center-ish
-MainFrame.BackgroundColor3 = Color3.fromRGB(60, 0, 255) -- Purple
+MainFrame.Size = UDim2.new(0.38, 0, 0.72, 0) -- Medium width, tall height
+MainFrame.Position = UDim2.new(0.31, 0, 0.14, 0)
 MainFrame.BorderSizePixel = 0
-MainFrame.AnchorPoint = Vector2.new(0, 0)
 MainFrame.Parent = ScreenGui
 
--- Gradient
+-- Rounded corners
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 18)
+Corner.Parent = MainFrame
+
+-- Horizontal Blue–Purple Gradient
 local Gradient = Instance.new("UIGradient")
 Gradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 170, 255)), -- Blue
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 0, 255))  -- Purple
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 0, 255)) -- Purple
 }
-Gradient.Rotation = 45
+Gradient.Rotation = 0 -- Horizontal
 Gradient.Parent = MainFrame
 
--- Rounded Corners
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 15)
-UICorner.Parent = MainFrame
+-- ===============================
+-- 1️⃣ MakeWindow Function
+-- ===============================
+function Library:MakeWindow(options)
+    -- Title
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1,0,0,40)
+    Title.Position = UDim2.new(0,0,0,0)
+    Title.Text = options.Title or "BluePurple Hub"
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 22
+    Title.TextColor3 = Color3.fromRGB(255,255,255)
+    Title.BackgroundTransparency = 1
+    Title.Parent = MainFrame
 
--- Title
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "BluePurple Hub"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 24
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Parent = MainFrame
+    -- SubTitle
+    local Sub = Instance.new("TextLabel")
+    Sub.Size = UDim2.new(1,0,0,20)
+    Sub.Position = UDim2.new(0,0,0,40)
+    Sub.Text = options.SubTitle or ""
+    Sub.Font = Enum.Font.Gotham
+    Sub.TextSize = 16
+    Sub.TextColor3 = Color3.fromRGB(200,200,200)
+    Sub.BackgroundTransparency = 1
+    Sub.Parent = MainFrame
 
--- Container for buttons
-local ButtonContainer = Instance.new("Frame")
-ButtonContainer.Size = UDim2.new(1, -20, 1, -60)
-ButtonContainer.Position = UDim2.new(0, 10, 0, 50)
-ButtonContainer.BackgroundTransparency = 1
-ButtonContainer.Parent = MainFrame
+    -- SaveFolder storage (optional)
+    self.SaveFolder = options.SaveFolder or ""
 
--- Automatic layout
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 10)
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.Parent = ButtonContainer
+    -- Container for buttons
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, -20, 1, -65)
+    Container.Position = UDim2.new(0, 10, 0, 60)
+    Container.BackgroundTransparency = 1
+    Container.Parent = MainFrame
 
--- Button creation function
+    local Layout = Instance.new("UIListLayout")
+    Layout.Padding = UDim.new(0, 12)
+    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    Layout.Parent = Container
+
+    -- Store reference
+    self.Container = Container
+
+    return self
+end
+
+-- ===============================
+-- 2️⃣ CreateButton Function
+-- ===============================
 function Library:CreateButton(text, callback)
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0.8, 0, 0, 40)
-    Button.BackgroundColor3 = Color3.fromRGB(0, 120, 255) -- Blue
+    Button.Size = UDim2.new(0.9, 0, 0, 42)
+    Button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Button.BackgroundTransparency = 0.85
     Button.Text = text
     Button.Font = Enum.Font.Gotham
-    Button.TextSize = 18
+    Button.TextSize = 17
     Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 10)
-    Corner.Parent = Button
+    Button.BorderSizePixel = 0
+    Button.Parent = self.Container
 
-    Button.Parent = ButtonContainer
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 12)
+    BtnCorner.Parent = Button
 
     Button.MouseButton1Click:Connect(function()
         pcall(callback)
     end)
 end
 
--- Auto adjust for mobile or resized screen
-local function updateSize()
-    local screenSize = PlayerGui.AbsoluteSize
-    MainFrame.Size = UDim2.new(0.5, 0, 0.6, 0)
-    if screenSize.X < 600 then -- small screens like mobile
-        MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
-        MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+-- ===============================
+-- 3️⃣ Mobile Adjustment
+-- ===============================
+local function AdjustForMobile()
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    if screenSize.X < 650 then
+        MainFrame.Size = UDim2.new(0.9, 0, 0.75, 0)
+        MainFrame.Position = UDim2.new(0.05, 0, 0.12, 0)
     end
 end
 
-updateSize()
-PlayerGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSize)
+AdjustForMobile()
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(AdjustForMobile)
 
+-- ===============================
+-- 4️⃣ Return Library
+-- ===============================
 return Library
