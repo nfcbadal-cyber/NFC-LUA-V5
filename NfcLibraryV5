@@ -1,7 +1,7 @@
 -- ==========================================
 -- NFC Library V5 - BluePurple Hub
 -- Ultra-lightweight, CoreGui safe, mobile-ready
--- Minimize button + Drag to move
+-- Custom Image Minimize button + Drag to move
 -- ==========================================
 
 local Library = {}
@@ -85,20 +85,19 @@ function Library:MakeWindow(options)
     Layout.Parent = Container
     self.Container = Container
 
-    -- Minimize Button
-    local MinBtn = Instance.new("TextButton")
-    MinBtn.Size = UDim2.new(0,35,0,25)
+    -- ===============================
+    -- Custom Image Minimize Button
+    -- ===============================
+    local MinBtn = Instance.new("ImageButton")
+    MinBtn.Size = UDim2.new(0,35,0,35)
     MinBtn.Position = UDim2.new(1,-40,0,10)
     MinBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    MinBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    MinBtn.Text = "-"
-    MinBtn.Font = Enum.Font.GothamBold
-    MinBtn.TextSize = 22
-    MinBtn.BorderSizePixel = 0
+    MinBtn.BackgroundTransparency = 0
+    MinBtn.Image = "rbxassetid://118627185278053"
     MinBtn.Parent = MainFrame
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0,6)
+    BtnCorner.CornerRadius = UDim.new(0,35)
     BtnCorner.Parent = MinBtn
 
     local minimized = false
@@ -112,7 +111,9 @@ function Library:MakeWindow(options)
         end
     end)
 
+    -- ===============================
     -- Drag Function
+    -- ===============================
     local dragging, dragInput, mousePos, framePos = false, nil, nil, nil
     local function update(input)
         local delta = input.Position - mousePos
