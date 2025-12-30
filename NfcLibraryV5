@@ -1,7 +1,5 @@
 -- ==========================================
 -- NFC Library V5 - BluePurple Hub
--- Ultra-lightweight, CoreGui safe, mobile-ready
--- Custom Image Minimize button + Drag to move
 -- ==========================================
 
 local Library = {}
@@ -9,24 +7,24 @@ local Library = {}
 -- Services
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local CoreGui = game:GetService("CoreGui")
+local PlayerGui = Player:WaitForChild("PlayerGui")
 local RunService = game:GetService("RunService")
 
 -- Remove old UI if exists
-pcall(function() CoreGui:FindFirstChild("NfcLibraryV5_UI"):Destroy() end)
+pcall(function() PlayerGui:FindFirstChild("NfcLibraryV5_UI"):Destroy() end)
 
 -- ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NfcLibraryV5_UI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = PlayerGui
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0.38,0,0.72,0)
 MainFrame.Position = UDim2.new(0.31,0,0.14,0)
 MainFrame.BorderSizePixel = 0
-MainFrame.BackgroundColor3 = Color3.fromRGB(60,0,255) -- base purple
+MainFrame.BackgroundColor3 = Color3.fromRGB(60,0,255)
 MainFrame.Parent = ScreenGui
 
 -- Rounded corners
@@ -34,7 +32,7 @@ local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0,18)
 Corner.Parent = MainFrame
 
--- Lightweight horizontal gradient
+-- Horizontal gradient
 local Gradient = Instance.new("UIGradient")
 Gradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(0,170,255)),
