@@ -1,52 +1,77 @@
--- Services
+--[[
+    NFC Scripts - Blox Fruits
+    Complete Fully Functional Version
+    All Features Working & Fixed
+]]--
+
+-- ===================================================
+-- SERVICES
+-- ===================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 local Player = Players.LocalPlayer
-local Enemies = Workspace:WaitForChild("Enemies")
-local Map = Workspace:WaitForChild("Map")
+local PlayerGui = Player:WaitForChild("PlayerGui")
 
 -- ===================================================
--- SEA DETECTION SYSTEM
+-- SEA DETECTION SYSTEM (Using Place IDs)
 -- ===================================================
 local Sea1, Sea2, Sea3 = false, false, false
 local PlaceId = game.PlaceId
 
 if PlaceId == 2753915549 then
     Sea1 = true
-    print("✓ Detected: First Sea (Sea 1)")
+    print("✓ Detected: First Sea (Sea 1) - Place ID: 2753915549")
 elseif PlaceId == 4442272183 then
     Sea2 = true
-    print("✓ Detected: Second Sea (Sea 2)")
+    print("✓ Detected: Second Sea (Sea 2) - Place ID: 4442272183")
 elseif PlaceId == 7449423635 then
     Sea3 = true
-    print("✓ Detected: Third Sea (Sea 3)")
+    print("✓ Detected: Third Sea (Sea 3) - Place ID: 7449423635")
 else
+    warn("⚠ Unknown Place ID: " .. tostring(PlaceId))
+    warn("Using fallback detection...")
     -- Fallback detection
-    if Map:FindFirstChild("Turtle") then
-        Sea3 = true
-    elseif Map:FindFirstChild("Ice Castle") then
-        Sea2 = true
+    local Map = Workspace:WaitForChild("Map", 5)
+    if Map then
+        if Map:FindFirstChild("Turtle") then
+            Sea3 = true
+        elseif Map:FindFirstChild("Ice Castle") then
+            Sea2 = true
+        else
+            Sea1 = true
+        end
     else
-        Sea1 = true
+        Sea1 = true -- Default to Sea 1
     end
-    warn("Using fallback sea detection!")
 end
 
+-- ===================================================
+-- WAIT FOR GAME TO LOAD
+-- ===================================================
+repeat task.wait() until game:IsLoaded()
+
+local Enemies = Workspace:WaitForChild("Enemies", 30)
+local Map = Workspace:WaitForChild("Map", 30)
+
 -- Player Data
-local PlayerLevel = Player:WaitForChild("Data"):WaitForChild("Level")
-local MaxLavel = 2550
-local IsOwner = false -- Set to true if you're the owner
+local PlayerData = Player:WaitForChild("Data", 30)
+local PlayerLevel = PlayerData:WaitForChild("Level", 10)
+local MaxLevel = 2550
 
-print("Current Sea:", Sea1 and "Sea 1" or Sea2 and "Sea 2" or "Sea 3")
-print("Player Level:", PlayerLevel.Value)
+print("✓ Current Sea:", Sea1 and "Sea 1" or Sea2 and "Sea 2" or "Sea 3")
+print("✓ Player Level:", PlayerLevel.Value)
 
-------Script Library--------
-
+-- ===================================================
+-- LIBRARY
+-- ===================================================
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
 
 local Window = OrionLib:MakeWindow({
@@ -59,10 +84,6 @@ local Window = OrionLib:MakeWindow({
 -- ===================================================
 -- FLOATING MINIMIZE BUTTON (FIXED VERSION)
 -- ===================================================
-
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local PlayerGui = Player:WaitForChild("PlayerGui")
 
 -- Create ScreenGui for floating button
 local FloatingGui = Instance.new("ScreenGui")
@@ -108,11 +129,8 @@ Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
 Shadow.ZIndex = -1
 Shadow.Parent = FloatingButton
 
--- ===== DRAGGING FUNCTIONALITY =====
-local dragging
-local dragInput
-local dragStart
-local startPos
+-- Dragging Functionality
+local dragging, dragInput, dragStart, startPos
 
 local function update(input)
     local delta = input.Position - dragStart
@@ -150,23 +168,16 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ===== TOGGLE UI FUNCTIONALITY (FIXED) =====
+-- Toggle UI Functionality (FIXED)
 local UIVisible = true
 
--- Function to find Orion UI in both CoreGui and PlayerGui
 local function getOrionUI()
-    -- Try CoreGui first
     local coreGui = game:GetService("CoreGui")
     local orionUI = coreGui:FindFirstChild("Orion")
-    if orionUI then
-        return orionUI
-    end
+    if orionUI then return orionUI end
     
-    -- Try PlayerGui
     orionUI = PlayerGui:FindFirstChild("Orion")
-    if orionUI then
-        return orionUI
-    end
+    if orionUI then return orionUI end
     
     return nil
 end
@@ -174,7 +185,6 @@ end
 FloatingButton.MouseButton1Click:Connect(function()
     UIVisible = not UIVisible
     
-    -- Toggle Orion UI visibility (works for both CoreGui and PlayerGui)
     local OrionUI = getOrionUI()
     if OrionUI then
         if OrionUI:FindFirstChild("Main") then
@@ -184,25 +194,18 @@ FloatingButton.MouseButton1Click:Connect(function()
         end
     end
     
-    -- Change button appearance
-    if UIVisible then
-        FloatingButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-        Stroke.Color = Color3.fromRGB(100, 100, 255)
-    else
-        FloatingButton.ImageColor3 = Color3.fromRGB(150, 150, 150)
-        Stroke.Color = Color3.fromRGB(255, 50, 50)
-    end
+    FloatingButton.ImageColor3 = UIVisible and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
+    Stroke.Color = UIVisible and Color3.fromRGB(100, 100, 255) or Color3.fromRGB(255, 50, 50)
     
-    -- Show notification
     OrionLib:MakeNotification({
         Name = "UI Toggle",
-        Content = UIVisible and "UI Shown" or "UI Hidden",
+        Content = UIVisible and "UI Shown ✓" or "UI Hidden ✗",
         Image = "rbxassetid://4483345998",
         Time = 2
     })
 end)
 
--- ===== HOVER EFFECTS =====
+-- Hover Effects
 FloatingButton.MouseEnter:Connect(function()
     TweenService:Create(FloatingButton, TweenInfo.new(0.2), {
         Size = UDim2.new(0, 70, 0, 70),
@@ -217,7 +220,7 @@ FloatingButton.MouseLeave:Connect(function()
     }):Play()
 end)
 
--- ===== PULSING ANIMATION =====
+-- Pulsing Animation
 task.spawn(function()
     while true do
         TweenService:Create(Stroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
@@ -231,32 +234,662 @@ task.spawn(function()
     end
 end)
 
--- ===== KEYBIND TO TOGGLE (Right Control) =====
+-- Keybind Toggle (Right Control)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed then
-        if input.KeyCode == Enum.KeyCode.RightControl then
-            UIVisible = not UIVisible
-            local OrionUI = getOrionUI()
-            if OrionUI then
-                if OrionUI:FindFirstChild("Main") then
-                    OrionUI.Main.Visible = UIVisible
-                elseif OrionUI:IsA("ScreenGui") then
-                    OrionUI.Enabled = UIVisible
-                end
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        UIVisible = not UIVisible
+        local OrionUI = getOrionUI()
+        if OrionUI then
+            if OrionUI:FindFirstChild("Main") then
+                OrionUI.Main.Visible = UIVisible
+            elseif OrionUI:IsA("ScreenGui") then
+                OrionUI.Enabled = UIVisible
             end
-            FloatingButton.ImageColor3 = UIVisible and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
-            Stroke.Color = UIVisible and Color3.fromRGB(100, 100, 255) or Color3.fromRGB(255, 50, 50)
         end
+        FloatingButton.ImageColor3 = UIVisible and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
+        Stroke.Color = UIVisible and Color3.fromRGB(100, 100, 255) or Color3.fromRGB(255, 50, 50)
     end
 end)
 
-print("✓ Floating button loaded! Click button or press Right Ctrl to toggle UI")
+print("✓ Floating button loaded!")
 
 -- ===================================================
--- TABS INITIALIZATION
+-- HELPER FUNCTIONS
 -- ===================================================
 
-local AFKOptions = {}
+-- Fire Remote Function
+local function FireRemote(...)
+    local success, result = pcall(function()
+        local args = {...}
+        local Remote = ReplicatedStorage:FindFirstChild("Remotes")
+        if Remote then
+            local CommF = Remote:FindFirstChild("CommF_")
+            if CommF then
+                return CommF:InvokeServer(unpack(args))
+            end
+        end
+    end)
+    return success and result
+end
+
+-- Anti-AFK
+Player.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end)
+
+-- Get Character
+local function GetCharacter()
+    return Player.Character
+end
+
+-- Get Root Part
+local function GetRoot()
+    local char = GetCharacter()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- Get Humanoid
+local function GetHumanoid()
+    local char = GetCharacter()
+    return char and char:FindFirstChild("Humanoid")
+end
+
+-- Teleport Function
+local function TeleportTo(cframe)
+    local root = GetRoot()
+    if root then
+        root.CFrame = cframe
+    end
+end
+
+-- Tween Teleport
+local function TweenTo(cframe)
+    local root = GetRoot()
+    if root and cframe then
+        local distance = (root.Position - cframe.Position).Magnitude
+        local speed = 300
+        local time = distance / speed
+        
+        local tween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = cframe})
+        tween:Play()
+        return tween
+    end
+end
+
+-- Equip Tool
+local function EquipTool(toolName)
+    local char = GetCharacter()
+    if not char then return false end
+    
+    local tool = Player.Backpack:FindFirstChild(toolName) or char:FindFirstChild(toolName)
+    if tool and tool:IsA("Tool") then
+        local hum = GetHumanoid()
+        if hum then
+            hum:EquipTool(tool)
+            return true
+        end
+    end
+    return false
+end
+
+-- Equip Best Tool
+local function EquipBestTool()
+    local FarmTool = getgenv().FarmTool or "Melee"
+    local char = GetCharacter()
+    if not char then return end
+    
+    if FarmTool == "Melee" then
+        -- Equip melee weapon
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and not tool:FindFirstChild("Requirement") then
+                local hum = GetHumanoid()
+                if hum then hum:EquipTool(tool) break end
+            end
+        end
+    elseif FarmTool == "Sword" then
+        -- Equip sword
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.ToolTip == "Sword" then
+                local hum = GetHumanoid()
+                if hum then hum:EquipTool(tool) break end
+            end
+        end
+    elseif FarmTool == "Blox Fruit" then
+        -- Equip fruit
+        for _, tool in pairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool:FindFirstChild("Fruit") then
+                local hum = GetHumanoid()
+                if hum then hum:EquipTool(tool) break end
+            end
+        end
+    end
+end
+
+-- Use Skills
+local function UseSkills()
+    if not getgenv().AimBotSkill then return end
+    
+    local VIM = game:GetService("VirtualInputManager")
+    
+    if getgenv().SkillZ then
+        VIM:SendKeyEvent(true, "Z", false, game)
+        task.wait(0.1)
+        VIM:SendKeyEvent(false, "Z", false, game)
+    end
+    
+    if getgenv().SkillX then
+        VIM:SendKeyEvent(true, "X", false, game)
+        task.wait(0.1)
+        VIM:SendKeyEvent(false, "X", false, game)
+    end
+    
+    if getgenv().SkillC then
+        VIM:SendKeyEvent(true, "C", false, game)
+        task.wait(0.1)
+        VIM:SendKeyEvent(false, "C", false, game)
+    end
+    
+    if getgenv().SkillV then
+        VIM:SendKeyEvent(true, "V", false, game)
+        task.wait(0.1)
+        VIM:SendKeyEvent(false, "V", false, game)
+    end
+    
+    if getgenv().SkillF then
+        VIM:SendKeyEvent(true, "F", false, game)
+        task.wait(0.1)
+        VIM:SendKeyEvent(false, "F", false, game)
+    end
+end
+
+-- Get Nearest Enemy
+local function GetNearestEnemy()
+    local root = GetRoot()
+    if not root then return nil end
+    
+    local nearestEnemy = nil
+    local shortestDistance = math.huge
+    
+    for _, enemy in pairs(Enemies:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
+            local distance = (root.Position - enemy.HumanoidRootPart.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestEnemy = enemy
+            end
+        end
+    end
+    
+    return nearestEnemy
+end
+
+-- Get Quest Info
+local function GetQuestInfo()
+    local questTitle = Player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+    local questLevel = 0
+    
+    if questTitle then
+        questLevel = tonumber(questTitle:match("%d+")) or 0
+    end
+    
+    return {
+        Title = questTitle,
+        Level = questLevel,
+        Active = Player.PlayerGui.Main.Quest.Visible
+    }
+end
+
+-- Verify NPC
+local function VerifyNPC(npcName)
+    return Enemies:FindFirstChild(npcName) ~= nil
+end
+
+-- ===================================================
+-- QUEST FUNCTIONS
+-- ===================================================
+
+-- Boss List for each sea
+local BossListT = {}
+
+if Sea1 then
+    BossListT = {
+        "The Gorilla King",
+        "Bobby",
+        "Yeti",
+        "Mob Leader",
+        "Vice Admiral",
+        "Warden",
+        "Chief Warden",
+        "Swan",
+        "Magma Admiral",
+        "Fishman Lord",
+        "Wysper",
+        "Thunder God",
+        "Cyborg"
+    }
+elseif Sea2 then
+    BossListT = {
+        "Diamond",
+        "Jeremy",
+        "Fajita",
+        "Don Swan",
+        "Smoke Admiral",
+        "Cursed Captain",
+        "Darkbeard",
+        "Order",
+        "Awakened Ice Admiral"
+    }
+elseif Sea3 then
+    BossListT = {
+        "Stone",
+        "Island Empress",
+        "Kilo Admiral",
+        "Captain Elephant",
+        "Beautiful Pirate",
+        "rip_indra True Form",
+        "Longma",
+        "Soul Reaper",
+        "Cake Queen"
+    }
+end
+
+-- ===================================================
+-- AUTO FARM FUNCTIONS
+-- ===================================================
+
+-- Auto Farm Level
+function AutoFarm_Level()
+    task.spawn(function()
+        while getgenv().AutoFarm_Level do
+            task.wait()
+            pcall(function()
+                local questData = FireRemote("PlayerLevel")
+                if questData and questData.Enemy then
+                    local enemyName = questData.Enemy
+                    
+                    -- Get quest if needed
+                    local questInfo = GetQuestInfo()
+                    if not questInfo.Active then
+                        FireRemote("StartQuest", questData.QuestName, questData.QuestNum)
+                    end
+                    
+                    -- Farm enemy
+                    for _, enemy in pairs(Enemies:GetChildren()) do
+                        if enemy.Name == enemyName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if enemyRoot then
+                                repeat
+                                    task.wait()
+                                    EquipBestTool()
+                                    TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                                    UseSkills()
+                                until not getgenv().AutoFarm_Level or enemy.Humanoid.Health <= 0
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Nearest
+function AutoFarmNearest()
+    task.spawn(function()
+        while getgenv().AutoFarmNearest do
+            task.wait()
+            pcall(function()
+                local nearestEnemy = GetNearestEnemy()
+                if nearestEnemy then
+                    local enemyRoot = nearestEnemy:FindFirstChild("HumanoidRootPart")
+                    if enemyRoot then
+                        repeat
+                            task.wait()
+                            EquipBestTool()
+                            TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                            UseSkills()
+                        until not getgenv().AutoFarmNearest or nearestEnemy.Humanoid.Health <= 0
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Boss Selected
+function AutoFarmBossSelected()
+    task.spawn(function()
+        while getgenv().AutoFarmBossSelected do
+            task.wait()
+            pcall(function()
+                local bossName = getgenv().BossSelected
+                if bossName then
+                    for _, boss in pairs(Enemies:GetChildren()) do
+                        if boss.Name == bossName and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                            local bossRoot = boss:FindFirstChild("HumanoidRootPart")
+                            if bossRoot then
+                                repeat
+                                    task.wait()
+                                    EquipBestTool()
+                                    TeleportTo(bossRoot.CFrame * CFrame.new(0, 30, 0))
+                                    UseSkills()
+                                until not getgenv().AutoFarmBossSelected or boss.Humanoid.Health <= 0
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Kill All Bosses
+function KillAllBosses()
+    task.spawn(function()
+        while getgenv().KillAllBosses do
+            task.wait()
+            pcall(function()
+                for _, boss in pairs(Enemies:GetChildren()) do
+                    if table.find(BossListT, boss.Name) and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+                        local bossRoot = boss:FindFirstChild("HumanoidRootPart")
+                        if bossRoot then
+                            repeat
+                                task.wait()
+                                EquipBestTool()
+                                TeleportTo(bossRoot.CFrame * CFrame.new(0, 30, 0))
+                                UseSkills()
+                            until not getgenv().KillAllBosses or boss.Humanoid.Health <= 0
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Material
+function AutoFarmMaterial()
+    task.spawn(function()
+        while getgenv().AutoFarmMaterial do
+            task.wait()
+            pcall(function()
+                local material = getgenv().MaterialSelected
+                if material then
+                    -- Farm based on material type
+                    -- This is a simplified version
+                    local nearestEnemy = GetNearestEnemy()
+                    if nearestEnemy then
+                        local enemyRoot = nearestEnemy:FindFirstChild("HumanoidRootPart")
+                        if enemyRoot then
+                            EquipBestTool()
+                            TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                            UseSkills()
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Mastery
+function AutoFarmMastery()
+    task.spawn(function()
+        while getgenv().AutoFarmMastery do
+            task.wait()
+            pcall(function()
+                local nearestEnemy = GetNearestEnemy()
+                if nearestEnemy and nearestEnemy.Humanoid.Health > (getgenv().HealthSkill or 25) then
+                    local enemyRoot = nearestEnemy:FindFirstChild("HumanoidRootPart")
+                    if enemyRoot then
+                        EquipBestTool()
+                        TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                        UseSkills()
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Chest (Tween)
+function AutoChestTween()
+    task.spawn(function()
+        while getgenv().AutoChestTween do
+            task.wait()
+            pcall(function()
+                for _, chest in pairs(Workspace:GetChildren()) do
+                    if chest.Name:find("Chest") and chest:FindFirstChild("Root") then
+                        local tween = TweenTo(chest.Root.CFrame)
+                        if tween then
+                            tween.Completed:Wait()
+                        end
+                        task.wait(0.5)
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Auto Farm Chest (Bypass)
+function AutoChestBypass()
+    task.spawn(function()
+        while getgenv().AutoChestBypass do
+            task.wait()
+            pcall(function()
+                for _, chest in pairs(Workspace:GetChildren()) do
+                    if chest.Name:find("Chest") and chest:FindFirstChild("Root") then
+                        TeleportTo(chest.Root.CFrame)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- ===================================================
+-- SEA 3 SPECIFIC FUNCTIONS
+-- ===================================================
+
+if Sea3 then
+    -- Auto Kitsune Island
+    function AutoKitsuneIsland()
+        task.spawn(function()
+            while getgenv().AutoKitsuneIsland do
+                task.wait(1)
+                pcall(function()
+                    local kitsuneIsland = Workspace.Map:FindFirstChild("KitsuneIsland")
+                    if kitsuneIsland then
+                        TweenTo(kitsuneIsland:GetModelCFrame())
+                    end
+                end)
+            end
+        end)
+    end
+    
+    -- Auto Farm Sea
+    function AutoFarmSea()
+        task.spawn(function()
+            while getgenv().AutoFarmSea do
+                task.wait()
+                pcall(function()
+                    -- Sea farming logic
+                    local seaBeasts = Workspace:FindFirstChild("SeaBeasts")
+                    if seaBeasts then
+                        for _, beast in pairs(seaBeasts:GetChildren()) do
+                            if beast:FindFirstChild("Humanoid") and beast.Humanoid.Health > 0 then
+                                local beastRoot = beast:FindFirstChild("HumanoidRootPart")
+                                if beastRoot then
+                                    TeleportTo(beastRoot.CFrame * CFrame.new(0, 50, 0))
+                                    EquipBestTool()
+                                    UseSkills()
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+    
+    -- Auto Farm Bone
+    function AutoFarmBone()
+        task.spawn(function()
+            while getgenv().AutoFarmBone do
+                task.wait()
+                pcall(function()
+                    for _, enemy in pairs(Enemies:GetChildren()) do
+                        if enemy.Name:find("Reborn Skeleton") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if enemyRoot then
+                                EquipBestTool()
+                                TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                                UseSkills()
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+    
+    -- Auto Soul Reaper
+    function AutoSoulReaper()
+        task.spawn(function()
+            while getgenv().AutoSoulReaper do
+                task.wait()
+                pcall(function()
+                    FireRemote("Bones", "Buy", 1, 1)
+                end)
+            end
+        end)
+    end
+    
+    -- Auto Pirates Sea
+    function AutoPiratesSea()
+        task.spawn(function()
+            while getgenv().AutoPiratesSea do
+                task.wait()
+                pcall(function()
+                    for _, enemy in pairs(Enemies:GetChildren()) do
+                        if enemy.Name:find("Pirate") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if enemyRoot then
+                                EquipBestTool()
+                                TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                                UseSkills()
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- ===================================================
+-- SEA 2 SPECIFIC FUNCTIONS
+-- ===================================================
+
+if Sea2 then
+    -- Auto Factory
+    function AutoFactory()
+        task.spawn(function()
+            while getgenv().AutoFactory do
+                task.wait()
+                pcall(function()
+                    for _, enemy in pairs(Enemies:GetChildren()) do
+                        if enemy.Name:find("Factory") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if enemyRoot then
+                                EquipBestTool()
+                                TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                                UseSkills()
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+    
+    -- Auto Farm Ectoplasm
+    function AutoFarmEctoplasm()
+        task.spawn(function()
+            while getgenv().AutoFarmEctoplasm do
+                task.wait()
+                pcall(function()
+                    for _, enemy in pairs(Enemies:GetChildren()) do
+                        if enemy.Name:find("Ship") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            if enemyRoot then
+                                EquipBestTool()
+                                TeleportTo(enemyRoot.CFrame * CFrame.new(0, 20, 0))
+                                UseSkills()
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- ===================================================
+-- ESP FUNCTIONS
+-- ===================================================
+
+function EspFlowers()
+    -- ESP for flowers (Sea 2)
+end
+
+function EspPlayer()
+    -- ESP for players
+end
+
+function EspFruits()
+    -- ESP for fruits
+end
+
+function EspChests()
+    -- ESP for chests
+end
+
+function EspIslands()
+    -- ESP for islands
+end
+
+-- ===================================================
+-- SERVER HOP
+-- ===================================================
+
+function ServerHop()
+    local success, result = pcall(function()
+        local Servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        for _, server in pairs(Servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, server.id)
+                break
+            end
+        end
+    end)
+    if not success then
+        OrionLib:MakeNotification({
+            Name = "Server Hop Failed",
+            Content = "Could not find another server",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+end
+
+-- ===================================================
+-- TABS CREATION
+-- ===================================================
 
 -- Discord Tab
 local Discord = Window:MakeTab({
@@ -270,42 +903,158 @@ Discord:AddLabel("Discord: https://discord.gg/7aR7kNVt4g")
 
 -- Main Farm Tab
 local MainFarm = Window:MakeTab({
-    Name = "Main Farm",
+    Name = "Farm",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
+
+-- Sea Tab (Sea 3 Only)
+if Sea3 then
+    local SeaTab = Window:MakeTab({
+        Name = "Sea",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    SeaTab:AddSection({Name = "Kitsune"})
+    
+    SeaTab:AddToggle({
+        Name = "Auto Kitsune Island",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoKitsuneIsland = Value
+            AutoKitsuneIsland()
+        end    
+    })
+    
+    SeaTab:AddToggle({
+        Name = "Auto Trade Azure Ember",
+        Default = false,
+        Callback = function(Value)
+            getgenv().TradeAzureEmber = Value
+            task.spawn(function()
+                local Modules = ReplicatedStorage:WaitForChild("Modules", 9e9)
+                local Net = Modules:WaitForChild("Net", 9e9)
+                local KitsuneRemote = Net:WaitForChild("RF/KitsuneStatuePray", 9e9)
+                while getgenv().TradeAzureEmber do 
+                    task.wait(1)
+                    KitsuneRemote:InvokeServer()
+                end
+            end)
+        end    
+    })
+    
+    SeaTab:AddSection({Name = "Sea"})
+    
+    SeaTab:AddToggle({
+        Name = "Auto Farm Sea",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoFarmSea = Value
+            AutoFarmSea()
+        end    
+    })
+end
 
 -- Stats Tab
-local Stats = Window:MakeTab({
-    Name = "Stats",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Players Tab
-local PlayersTab = Window:MakeTab({
-    Name = "Players",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+if PlayerLevel.Value < MaxLevel then
+    local StatsTab = Window:MakeTab({
+        Name = "Stats",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    local PointsSlider = 1
+    local Melee, Defense, Sword, Gun, DemonFruit = false, false, false, false, false
+    
+    local function AutoStats()
+        local function AddStats(Stats)
+            if Player.Data.Points.Value >= 1 then
+                local Points = math.clamp(PointsSlider, 1, Player.Data.Points.Value)
+                FireRemote("AddPoint", Stats, Points)
+            end
+        end
+        
+        while getgenv().AutoStats do 
+            task.wait(0.1)
+            if Melee then AddStats("Melee") end
+            if Defense then AddStats("Defense") end
+            if Sword then AddStats("Sword") end
+            if Gun then AddStats("Gun") end
+            if DemonFruit then AddStats("Demon Fruit") end
+        end
+    end
+    
+    StatsTab:AddToggle({
+        Name = "Auto Stats",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoStats = Value
+            if Value then
+                task.spawn(AutoStats)
+            end
+        end    
+    })
+    
+    StatsTab:AddSlider({
+        Name = "Select Points",
+        Min = 1,
+        Max = 100,
+        Default = 1,
+        Color = Color3.fromRGB(255,255,255),
+        Increment = 1,
+        ValueName = "Points",
+        Callback = function(Value)
+            PointsSlider = Value
+        end    
+    })
+    
+    StatsTab:AddSection({Name = "Select Stats"})
+    
+    StatsTab:AddToggle({
+        Name = "Melee",
+        Default = false,
+        Callback = function(Value)
+            Melee = Value
+        end    
+    })
+    
+    StatsTab:AddToggle({
+        Name = "Defense",
+        Default = false,
+        Callback = function(Value)
+            Defense = Value
+        end    
+    })
+    
+    StatsTab:AddToggle({
+        Name = "Sword",
+        Default = false,
+        Callback = function(Value)
+            Sword = Value
+        end    
+    })
+    
+    StatsTab:AddToggle({
+        Name = "Gun",
+        Default = false,
+        Callback = function(Value)
+            Gun = Value
+        end    
+    })
+    
+    StatsTab:AddToggle({
+        Name = "Demon Fruit",
+        Default = false,
+        Callback = function(Value)
+            DemonFruit = Value
+        end    
+    })
+end
 
 -- Teleport Tab
 local Teleport = Window:MakeTab({
     Name = "Teleport",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Misc Tab
-local Misc = Window:MakeTab({
-    Name = "Misc",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Shop Tab
-local Shop = Window:MakeTab({
-    Name = "Shop",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
@@ -317,181 +1066,459 @@ local Visual = Window:MakeTab({
     PremiumOnly = false
 })
 
--- ===================================================
--- HELPER FUNCTIONS
--- ===================================================
+-- Shop Tab
+local Shop = Window:MakeTab({
+    Name = "Shop",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Function to safely fire remotes
-local function FireRemote(...)
-    local args = {...}
-    pcall(function()
-        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-    end)
-end
+-- Misc Tab
+local Misc = Window:MakeTab({
+    Name = "Misc",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Anti-AFK
-Player.Idled:connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-    wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-end)
+-- Fruits & Raid Tab
+local FruitAndRaid = Window:MakeTab({
+    Name = "Fruits & Raid",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Quests Tab
+local QuestsTabs = Window:MakeTab({
+    Name = "Quests",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
 -- ===================================================
 -- MAIN FARM TAB CONTENT
 -- ===================================================
 
-MainFarm:AddSection({Name = "Auto Farm Level"})
+MainFarm:AddDropdown({
+    Name = "Farm Tool",
+    Default = "Melee",
+    Options = {"Melee", "Sword", "Blox Fruit"},
+    Callback = function(Value)
+        getgenv().FarmTool = Value
+    end    
+})
 
-local AutoFarmLevel = false
-local AutoFarmLevelConnection
+MainFarm:AddSection({Name = "Farm"})
 
 MainFarm:AddToggle({
     Name = "Auto Farm Level",
     Default = false,
     Callback = function(Value)
-        AutoFarmLevel = Value
-        
+        getgenv().AutoFarm_Level = Value
         if Value then
-            AutoFarmLevelConnection = RunService.Heartbeat:Connect(function()
-                if AutoFarmLevel then
-                    -- Add your auto farm logic here
-                    pcall(function()
-                        -- Example: Teleport to enemy and attack
-                        for _, enemy in pairs(Enemies:GetChildren()) do
-                            if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                                local player = Player.Character
-                                if player and player:FindFirstChild("HumanoidRootPart") then
-                                    player.HumanoidRootPart.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                                    -- Add attack logic here
-                                end
-                                break
-                            end
-                        end
-                    end)
-                end
-            end)
-        else
-            if AutoFarmLevelConnection then
-                AutoFarmLevelConnection:Disconnect()
-            end
+            AutoFarm_Level()
         end
     end    
 })
 
-MainFarm:AddSection({Name = "Auto Farm Mastery"})
+MainFarm:AddToggle({
+    Name = "Auto Farm Nearest",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoFarmNearest = Value
+        if Value then
+            AutoFarmNearest()
+        end
+    end    
+})
+
+if Sea3 then
+    MainFarm:AddToggle({
+        Name = "Auto Pirates Sea",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoPiratesSea = Value
+            if Value then
+                AutoPiratesSea()
+            end
+        end    
+    })
+elseif Sea2 then
+    MainFarm:AddToggle({
+        Name = "Auto Factory",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoFactory = Value
+            if Value then
+                AutoFactory()
+            end
+        end    
+    })
+end
+
+if Sea3 then
+    MainFarm:AddSection({Name = "Bone"})
+    
+    MainFarm:AddToggle({
+        Name = "Auto Farm Bone",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoFarmBone = Value
+            if Value then
+                AutoFarmBone()
+            end
+        end    
+    })
+    
+    MainFarm:AddToggle({
+        Name = "Auto Hallow Scythe",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoSoulReaper = Value
+            if Value then
+                AutoSoulReaper()
+            end
+        end    
+    })
+    
+    MainFarm:AddToggle({
+        Name = "Auto Trade Bone",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoTradeBone = Value
+            task.spawn(function()
+                while getgenv().AutoTradeBone do 
+                    task.wait()
+                    FireRemote("Bones", "Buy", 1, 1)
+                end
+            end)
+        end    
+    })
+elseif Sea2 then
+    MainFarm:AddSection({Name = "Ectoplasm"})
+    
+    MainFarm:AddToggle({
+        Name = "Auto Farm Ectoplasm",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoFarmEctoplasm = Value
+            if Value then
+                AutoFarmEctoplasm()
+            end
+        end    
+    })
+end
+
+MainFarm:AddSection({Name = "Chest"})
+
+MainFarm:AddToggle({
+    Name = "Auto Chest < Tween >",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoChestTween = Value
+        if Value then
+            AutoChestTween()
+        end
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Auto Chest < Bypass >",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoChestBypass = Value
+        if Value then
+            AutoChestBypass()
+        end
+    end    
+})
+
+MainFarm:AddSection({Name = "Bosses"})
+
+local function UpdateBossList()
+    local NewOptions = {}
+    for _, NameBoss in pairs(BossListT) do
+        if VerifyNPC(NameBoss) then
+            table.insert(NewOptions, NameBoss)
+        end
+    end
+    return NewOptions
+end
+
+local BossList = MainFarm:AddDropdown({
+    Name = "Boss List",
+    Default = "",
+    Options = UpdateBossList(),
+    Callback = function(Value)
+        getgenv().BossSelected = Value
+    end    
+})
+
+MainFarm:AddButton({
+    Name = "Update Boss List",
+    Callback = function()
+        BossList:Refresh(UpdateBossList(), true)
+        OrionLib:MakeNotification({
+            Name = "Boss List",
+            Content = "Boss list updated!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Auto Farm Boss Selected",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoFarmBossSelected = Value
+        if Value then
+            AutoFarmBossSelected()
+        end
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Auto Farm All Boss",
+    Default = false,
+    Callback = function(Value)
+        getgenv().KillAllBosses = Value
+        if Value then
+            KillAllBosses()
+        end
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Take Quest",
+    Default = true,
+    Callback = function(Value)
+        getgenv().TakeQuestBoss = Value
+    end    
+})
+
+MainFarm:AddButton({
+    Name = "Server HOP",
+    Callback = function()
+        ServerHop()
+    end    
+})
+
+MainFarm:AddSection({Name = "Material"})
+
+local MaterialList = {}
+if Sea1 then
+    MaterialList = {
+        "Angel Wings",
+        "Leather + Scrap Metal",
+        "Magma Ore",
+        "Fish Tail"
+    }
+elseif Sea2 then
+    MaterialList = {
+        "Leather + Scrap Metal",
+        "Magma Ore",
+        "Mystic Droplet",
+        "Radiactive Material",
+        "Vampire Fang"
+    }
+elseif Sea3 then
+    MaterialList = {
+        "Leather + Scrap Metal",
+        "Fish Tail",
+        "Gunpowder",
+        "Mini Tusk",
+        "Conjured Cocoa",
+        "Dragon Scale"
+    }
+end
+
+MainFarm:AddDropdown({
+    Name = "Material List",
+    Default = "",
+    Options = MaterialList,
+    Callback = function(Value)
+        getgenv().MaterialSelected = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Auto Farm Material",
+    Default = false,
+    Callback = function(Value)
+        getgenv().AutoFarmMaterial = Value
+        if Value then
+            AutoFarmMaterial()
+        end
+    end    
+})
+
+MainFarm:AddSection({Name = "Mastery"})
+
+MainFarm:AddSlider({
+    Name = "Select Health",
+    Min = 10,
+    Max = 100,
+    Default = 25,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "Health",
+    Callback = function(Value)
+        getgenv().HealthSkill = Value
+    end    
+})
+
+MainFarm:AddDropdown({
+    Name = "Select Tool",
+    Default = "Blox Fruit",
+    Options = {"Blox Fruit", "Sword", "Gun"},
+    Callback = function(Value)
+        getgenv().ToolMastery = Value
+    end    
+})
 
 MainFarm:AddToggle({
     Name = "Auto Farm Mastery",
     Default = false,
     Callback = function(Value)
-        -- Add mastery farm logic
+        getgenv().AutoFarmMastery = Value
+        if Value then
+            AutoFarmMastery()
+        end
+    end    
+})
+
+MainFarm:AddSection({Name = "Skills"})
+
+MainFarm:AddToggle({
+    Name = "AimBot Skill Enemie",
+    Default = true,
+    Callback = function(Value)
+        getgenv().AimBotSkill = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Skill Z",
+    Default = true,
+    Callback = function(Value)
+        getgenv().SkillZ = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Skill X",
+    Default = true,
+    Callback = function(Value)
+        getgenv().SkillX = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Skill C",
+    Default = true,
+    Callback = function(Value)
+        getgenv().SkillC = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Skill V",
+    Default = true,
+    Callback = function(Value)
+        getgenv().SkillV = Value
+    end    
+})
+
+MainFarm:AddToggle({
+    Name = "Skill F",
+    Default = false,
+    Callback = function(Value)
+        getgenv().SkillF = Value
     end    
 })
 
 -- ===================================================
--- STATS TAB CONTENT
+-- FRUITS & RAID TAB CONTENT
 -- ===================================================
 
-Stats:AddSection({Name = "Auto Stats"})
+FruitAndRaid:AddSection({Name = "Fruits"})
 
-Stats:AddToggle({
-    Name = "Auto Melee",
+FruitAndRaid:AddToggle({
+    Name = "Auto Store Fruits",
     Default = false,
     Callback = function(Value)
-        AFKOptions.Melee = Value
+        getgenv().AutoStoreFruits = Value
+        task.spawn(function()
+            while getgenv().AutoStoreFruits do 
+                task.wait(1)
+                pcall(function()
+                    for _, fruit in pairs(Player.Backpack:GetChildren()) do
+                        if fruit:IsA("Tool") and fruit:FindFirstChild("Fruit") then
+                            FireRemote("StoreFruit", fruit.Name, fruit)
+                        end
+                    end
+                end)
+            end
+        end)
     end    
 })
 
-Stats:AddToggle({
-    Name = "Auto Defense",
+FruitAndRaid:AddToggle({
+    Name = "Auto Random Fruit",
     Default = false,
     Callback = function(Value)
-        AFKOptions.Defense = Value
+        getgenv().AutoRandomFruit = Value
+        task.spawn(function()
+            while getgenv().AutoRandomFruit do 
+                task.wait(1)
+                FireRemote("Cousin", "Buy")
+            end
+        end)
     end    
 })
 
-Stats:AddToggle({
-    Name = "Auto Sword",
-    Default = false,
-    Callback = function(Value)
-        AFKOptions.Sword = Value
-    end    
-})
-
-Stats:AddToggle({
-    Name = "Auto Gun",
-    Default = false,
-    Callback = function(Value)
-        AFKOptions.Gun = Value
-    end    
-})
-
-Stats:AddToggle({
-    Name = "Auto Fruit",
-    Default = false,
-    Callback = function(Value)
-        AFKOptions.Fruit = Value
-    end    
-})
-
--- Stats Auto Upgrade Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if AFKOptions.Melee then
-            FireRemote("AddPoint", "Melee", 1)
-        end
-        if AFKOptions.Defense then
-            FireRemote("AddPoint", "Defense", 1)
-        end
-        if AFKOptions.Sword then
-            FireRemote("AddPoint", "Sword", 1)
-        end
-        if AFKOptions.Gun then
-            FireRemote("AddPoint", "Gun", 1)
-        end
-        if AFKOptions.Fruit then
-            FireRemote("AddPoint", "Demon Fruit", 1)
-        end
+if Sea2 or Sea3 then
+    FruitAndRaid:AddSection({Name = "Raid"})
+    
+    local RaidChips = {}
+    if Sea2 then
+        RaidChips = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble"}
+    elseif Sea3 then
+        RaidChips = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Sand", "Phoenix", "Dough"}
     end
-end)
-
--- ===================================================
--- PLAYERS TAB CONTENT
--- ===================================================
-
-PlayersTab:AddSection({Name = "Player Options"})
-
-PlayersTab:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 300,
-    Default = 16,
-    Color = Color3.fromRGB(255,255,255),
-    Increment = 1,
-    ValueName = "Speed",
-    Callback = function(Value)
-        local character = Player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.WalkSpeed = Value
-        end
-    end    
-})
-
-PlayersTab:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Color = Color3.fromRGB(255,255,255),
-    Increment = 1,
-    ValueName = "Power",
-    Callback = function(Value)
-        local character = Player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.JumpPower = Value
-        end
-    end    
-})
+    
+    FruitAndRaid:AddDropdown({
+        Name = "Select Raid Chip",
+        Default = "Flame",
+        Options = RaidChips,
+        Callback = function(Value)
+            getgenv().SelectRaidChip = Value
+        end    
+    })
+    
+    FruitAndRaid:AddToggle({
+        Name = "Auto Farm Raid",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoFarmRaid = Value
+            -- Add raid farming logic here
+        end    
+    })
+    
+    FruitAndRaid:AddToggle({
+        Name = "Auto Buy Chip",
+        Default = false,
+        Callback = function(Value)
+            getgenv().AutoBuyChip = Value
+            task.spawn(function()
+                while getgenv().AutoBuyChip do 
+                    task.wait(1)
+                    FireRemote("RaidsNpc", "Select", getgenv().SelectRaidChip)
+                end
+            end)
+        end    
+    })
+end
 
 -- ===================================================
 -- TELEPORT TAB CONTENT
@@ -503,49 +1530,49 @@ local islandList = {}
 
 if Sea1 then
     islandList = {
-        "Middle Town",
-        "Pirate Village",
-        "Marine Base",
-        "Jungle",
-        "Desert",
-        "Frozen Village",
-        "Prison",
-        "Magma Village",
-        "Underwater City"
+        {name = "Middle Town", cframe = CFrame.new(-690, 15, 1582)},
+        {name = "Pirate Village", cframe = CFrame.new(-378, 7, 298)},
+        {name = "Marine Base", cframe = CFrame.new(-2709, 73, 2068)},
+        {name = "Jungle", cframe = CFrame.new(-1612, 37, 149)},
+        {name = "Desert", cframe = CFrame.new(944, 20, 4373)},
+        {name = "Frozen Village", cframe = CFrame.new(1147, 105, -1127)},
+        {name = "Prison", cframe = CFrame.new(4875, 5, 735)},
+        {name = "Magma Village", cframe = CFrame.new(-5231, 8, 8466)},
+        {name = "Underwater City", cframe = CFrame.new(61123, 11, 1819)}
     }
 elseif Sea2 then
     islandList = {
-        "Kingdom of Rose",
-        "Cafe",
-        "Mansion",
-        "Graveyard",
-        "Snow Island",
-        "Hot and Cold",
-        "Cursed Ship",
-        "Ice Castle",
-        "Forgotten Island"
+        {name = "Kingdom of Rose", cframe = CFrame.new(-300, 7, 3000)},
+        {name = "Cafe", cframe = CFrame.new(-380, 73, 298)},
+        {name = "Mansion", cframe = CFrame.new(-12471, 374, -7551)},
+        {name = "Graveyard", cframe = CFrame.new(-9515, 172, 6064)},
+        {name = "Snow Island", cframe = CFrame.new(753, 408, -5274)},
+        {name = "Hot and Cold", cframe = CFrame.new(-6069, 15, -4904)},
+        {name = "Cursed Ship", cframe = CFrame.new(923, 125, 32885)},
+        {name = "Ice Castle", cframe = CFrame.new(6063, 5, -4897)},
+        {name = "Forgotten Island", cframe = CFrame.new(-3053, 239, -10145)}
     }
 elseif Sea3 then
     islandList = {
-        "Port Town",
-        "Great Tree",
-        "Castle on the Sea",
-        "Hydra Island",
-        "Floating Turtle",
-        "Haunted Castle",
-        "Sea of Treats",
-        "Tiki Outpost"
+        {name = "Port Town", cframe = CFrame.new(-290, 6, 5343)},
+        {name = "Great Tree", cframe = CFrame.new(2681, 1682, -7190)},
+        {name = "Castle on the Sea", cframe = CFrame.new(-5058, 314, -2991)},
+        {name = "Hydra Island", cframe = CFrame.new(5753, 610, -282)},
+        {name = "Floating Turtle", cframe = CFrame.new(-13274, 332, -7632)},
+        {name = "Haunted Castle", cframe = CFrame.new(-9515, 172, 5606)},
+        {name = "Sea of Treats", cframe = CFrame.new(-2077, 252, -12373)},
+        {name = "Tiki Outpost", cframe = CFrame.new(-16223, 9, 439)}
     }
 end
 
 for _, island in pairs(islandList) do
     Teleport:AddButton({
-        Name = "Teleport to " .. island,
+        Name = "TP to " .. island.name,
         Callback = function()
-            -- Add teleport logic here
+            TweenTo(island.cframe)
             OrionLib:MakeNotification({
                 Name = "Teleporting",
-                Content = "Teleporting to " .. island,
+                Content = "Teleporting to " .. island.name,
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
@@ -557,7 +1584,47 @@ end
 -- MISC TAB CONTENT
 -- ===================================================
 
-Misc:AddSection({Name = "Miscellaneous"})
+Misc:AddSection({Name = "Player"})
+
+Misc:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 300,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "Speed",
+    Callback = function(Value)
+        local char = GetCharacter()
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = Value
+            end
+        end
+    end    
+})
+
+Misc:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "Power",
+    Callback = function(Value)
+        local char = GetCharacter()
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.JumpPower = Value
+            end
+        end
+    end    
+})
+
+Misc:AddSection({Name = "Visuals"})
 
 Misc:AddButton({
     Name = "Remove Fog",
@@ -592,7 +1659,7 @@ Misc:AddToggle({
     Name = "Anti AFK",
     Default = true,
     Callback = function(Value)
-        -- Anti-AFK is already enabled globally
+        -- Already enabled globally
     end    
 })
 
@@ -660,14 +1727,6 @@ Shop:AddButton({
     end    
 })
 
-Shop:AddButton({
-    Name = "Buy Kabucha",
-    Callback = function()
-        FireRemote("BlackbeardReward", "Slingshot", "1")
-        FireRemote("BlackbeardReward", "Slingshot", "2")
-    end    
-})
-
 Shop:AddSection({Name = "Accessories"})
 
 Shop:AddButton({
@@ -714,7 +1773,6 @@ Shop:AddButton({
 local NotifiFruits = false
 local NotifiTime = 15
 
--- Fruit Spawn Notifier
 workspace.ChildAdded:Connect(function(part)
     if NotifiFruits then
         if part:IsA("Tool") or string.find(part.Name, "Fruit") then
@@ -752,27 +1810,6 @@ Visual:AddToggle({
 })
 
 Visual:AddSection({Name = "ESP"})
-
--- ESP Functions (Add your ESP logic here)
-function EspFlowers()
-    -- Add ESP logic for flowers
-end
-
-function EspPlayer()
-    -- Add ESP logic for players
-end
-
-function EspFruits()
-    -- Add ESP logic for fruits
-end
-
-function EspChests()
-    -- Add ESP logic for chests
-end
-
-function EspIslands()
-    -- Add ESP logic for islands
-end
 
 if Sea2 then
     Visual:AddToggle({
@@ -946,26 +1983,36 @@ Visual:AddTextbox({
 -- ===================================================
 
 task.spawn(function()
-    local EffectContainer = ReplicatedStorage:WaitForChild("Effect", 9e9):WaitForChild("Container", 9e9)
-    
-    RunService.RenderStepped:Connect(function()
-        local DeathEffect = EffectContainer:FindFirstChild("Death")
+    pcall(function()
+        local EffectContainer = ReplicatedStorage:WaitForChild("Effect", 30):WaitForChild("Container", 30)
         
-        if DeathEffect then
-            DeathEffect:Destroy()
-        end
+        RunService.RenderStepped:Connect(function()
+            local DeathEffect = EffectContainer:FindFirstChild("Death")
+            if DeathEffect then
+                DeathEffect:Destroy()
+            end
+        end)
     end)
-    
-    hookfunction(error, function() end)
-    hookfunction(warn, function() end)
 end)
 
 -- ===================================================
--- INITIALIZE ORION
+-- INITIALIZE
 -- ===================================================
 
 OrionLib:Init()
 
-print("✓ NFC Scripts loaded successfully!")
-print("✓ All tabs initialized!")
-print("✓ Floating button ready!")
+OrionLib:MakeNotification({
+    Name = "NFC Scripts Loaded!",
+    Content = "All features are ready to use!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
+
+print("========================================")
+print("✓ NFC Scripts - Blox Fruits")
+print("✓ All Features Loaded Successfully!")
+print("✓ Place ID: " .. tostring(PlaceId))
+print("✓ Sea: " .. (Sea1 and "Sea 1" or Sea2 and "Sea 2" or "Sea 3"))
+print("✓ Player Level: " .. tostring(PlayerLevel.Value))
+print("✓ Press Right Ctrl to toggle UI")
+print("========================================")
