@@ -1,163 +1,138 @@
 --[[
-    NFC SCRIPTS - BLOX FRUITS (ULTIMATE FIXED VERSION)
-    - Full Feature Implementation
-    - Zero Bug Guarantee
-    - Optimized for Mobile & PC
+    NFC SCRIPTS - AIMBOT EDITION
+    Integrated with your provided UI Library
 ]]
 
---// Services
+local Library = loadstring(game:HttpGet('https://gist.githubusercontent.com/MjContiga1/5b9535166d60560ac884a871cb0dc418/raw/e7fdb16802d9486d8d04d3e41d3607d89e6b4a1b/Libsuck.lua'))()
+
+-- // Services
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
 
---// Variables
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local Root = Character:WaitForChild("HumanoidRootPart")
+-- // Aimbot Variables
+getgenv().AimbotEnabled = false
+getgenv().TeamCheck = false
+getgenv().AimbotPart = "Head"
+getgenv().FOVVisible = true
+getgenv().FOVRadius = 100
+getgenv().FOVColor = Color3.fromRGB(255, 255, 255)
 
---// Global Settings
-getgenv().FarmTool = "Melee"
-getgenv().AutoFarm_Level = false
-getgenv().AutoStats = false
+-- // FOV Circle Setup
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 460
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
 
---// Core Utility Functions
-local function FireRemote(...)
-    local remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-    return remote:InvokeServer(...)
-end
+-- // Functions
+local function GetClosestPlayer()
+    local MaximumDistance = getgenv().FOVRadius
+    local Target = nil
 
-local function EquipTool()
-    local toolType = getgenv().FarmTool or "Melee"
-    for _, tool in pairs(Player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and (tool.ToolTip == toolType or tool.Name:find(toolType)) then
-            Player.Character.Humanoid:EquipTool(tool)
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            if getgenv().TeamCheck and v.Team == LocalPlayer.Team then continue end
+            
+            local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[getgenv().AimbotPart].Position)
+            local Distance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+            
+            if Distance < MaximumDistance and OnScreen then
+                MaximumDistance = Distance
+                Target = v
+            end
         end
     end
+    return Target
 end
 
-local function PlayerTP(targetCFrame)
-    if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local distance = (targetCFrame.Position - Player.Character.HumanoidRootPart.Position).Magnitude
-    local tween = TweenService:Create(Player.Character.HumanoidRootPart, TweenInfo.new(distance/300, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-    tween:Play()
-    return tween
-end
+-- // Aimbot Loop
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Visible = getgenv().FOVVisible
+    FOVCircle.Radius = getgenv().FOVRadius
+    FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+    FOVCircle.Color = getgenv().FOVColor
 
---// Sea Detection
-local Sea1, Sea2, Sea3 = false, false, false
-if game.PlaceId == 2753915549 then Sea1 = true 
-elseif game.PlaceId == 4442272183 then Sea2 = true 
-elseif game.PlaceId == 7449423635 then Sea3 = true end
-
---// UI Setup
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
-local Window = OrionLib:MakeWindow({Name = "NFC Scripts : Blox Fruits", HidePremium = false, SaveConfig = false})
-
---// Tabs
-local MainTab = Window:MakeTab({Name = "Auto Farm", Icon = "rbxassetid://4483345998"})
-local StatsTab = Window:MakeTab({Name = "Stats", Icon = "rbxassetid://4483345998"})
-local CombatTab = Window:MakeTab({Name = "Fighting Styles", Icon = "rbxassetid://4483345998"})
-local VisualTab = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"})
-local TeleTab = Window:MakeTab({Name = "Teleport", Icon = "rbxassetid://4483345998"})
-
---// Farm Section
-MainTab:AddDropdown({
-    Name = "Farm Tool",
-    Options = {"Melee", "Sword", "Blox Fruit"},
-    Default = "Melee",
-    Callback = function(v) getgenv().FarmTool = v end
-})
-
-MainTab:AddToggle({
-    Name = "Auto Farm Level",
-    Default = false,
-    Callback = function(Value)
-        getgenv().AutoFarm_Level = Value
-        task.spawn(function()
-            while getgenv().AutoFarm_Level do
-                task.wait()
-                pcall(function()
-                    EquipTool()
-                    -- Note: Add specific quest NPC logic here for full automation
-                end)
-            end
-        end)
+    if getgenv().AimbotEnabled then
+        local Target = GetClosestPlayer()
+        if Target then
+            -- This is "Silent Aim" logic (Modifies the Camera view)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Character[getgenv().AimbotPart].Position)
+        end
     end
-})
+end)
 
---// Stats Section
-local PointsSlider = 1
-StatsTab:AddSlider({
-    Name = "Point Amount",
-    Min = 1, Max = 100, Default = 1,
-    Callback = function(v) PointsSlider = v end
-})
+-- // UI SETUP
+local window = Library:Window('NFC SCRIPTS | AIMBOT')
 
-local function HandleStats(stat, toggle)
-    task.spawn(function()
-        while toggle do
-            task.wait(0.5)
-            if Player.Data.Points.Value >= PointsSlider then
-                FireRemote("AddPoint", stat, PointsSlider)
-            end
+local mainTab = window:Tab({"Combat", "rbxassetid://7734022041"})
+local localTab = window:Tab({"LocalPlayer", "rbxassetid://7743875962"})
+local settingsTab = window:Tab({"Settings", "rbxassetid://7733673987"})
+
+-- // Combat Tab (Aimbot Features)
+mainTab:Label("Aimbot Settings")
+
+mainTab:Toggle('Enable Aimbot', false, function(state)
+    getgenv().AimbotEnabled = state
+end)
+
+mainTab:Toggle('Team Check', false, function(state)
+    getgenv().TeamCheck = state
+end)
+
+mainTab:Dropdown("Target Part", {"Head", "HumanoidRootPart"}, function(selected)
+    getgenv().AimbotPart = selected
+end)
+
+mainTab:Label("FOV Visuals")
+
+mainTab:Toggle('Show FOV Circle', true, function(state)
+    getgenv().FOVVisible = state
+end)
+
+mainTab:Slider("FOV Radius", 10, 500, 100, function(value)
+    getgenv().FOVRadius = value
+end)
+
+-- // LocalPlayer Tab
+localTab:Label("Character Modification")
+
+localTab:Slider("Walk Speed", 16, 250, 16, function(value)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = value
+    end
+end)
+
+localTab:Slider("Jump Power", 50, 500, 50, function(value)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.UseJumpPower = true
+        LocalPlayer.Character.Humanoid.JumpPower = value
+    end
+end)
+
+localTab:Toggle("Infinite Jump", false, function(state)
+    getgenv().InfJump = state
+    UserInputService.JumpRequest:Connect(function()
+        if getgenv().InfJump then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
         end
     end)
-end
+end)
 
-StatsTab:AddToggle({Name = "Auto Melee", Callback = function(v) HandleStats("Melee", v) end})
-StatsTab:AddToggle({Name = "Auto Defense", Callback = function(v) HandleStats("Defense", v) end})
-StatsTab:AddToggle({Name = "Auto Sword", Callback = function(v) HandleStats("Sword", v) end})
+-- // Settings Tab
+settingsTab:Label("UI Customization")
 
---// Fighting Styles (Sea 2/3)
-CombatTab:AddToggle({
-    Name = "Auto Superhuman",
-    Callback = function(v)
-        getgenv().AutoSuperhuman = v
-        while getgenv().AutoSuperhuman do task.wait(1)
-            FireRemote("BuySuperhuman")
-        end
-    end
-})
+settingsTab:Button('Destroy UI', function()
+    FOVCircle:Remove()
+    -- Logic to close/destroy UI
+end)
 
-CombatTab:AddToggle({
-    Name = "Auto Death Step",
-    Callback = function(v)
-        getgenv().AutoDeathStep = v
-        while getgenv().AutoDeathStep do task.wait(1)
-            FireRemote("BuyDeathStep")
-        end
-    end
-})
+settingsTab:Keybind("Toggle Menu", Enum.KeyCode.RightShift, function()
+    -- Library toggle logic usually handled by the Lib
+    print("Menu Toggled")
+end)
 
---// Visuals
-VisualTab:AddToggle({
-    Name = "Full Bright",
-    Callback = function(v)
-        if v then
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.Brightness = 2
-        else
-            Lighting.Ambient = Color3.fromRGB(127, 127, 127)
-            Lighting.Brightness = 1
-        end
-    end
-})
-
-VisualTab:AddTextbox({
-    Name = "Fake Money",
-    Callback = function(v)
-        Player.Data.Beli.Value = tonumber(v) or Player.Data.Beli.Value
-    end
-})
-
---// Teleports
-TeleTab:AddButton({Name = "Sea 1", Callback = function() FireRemote("TravelMain") end})
-TeleTab:AddButton({Name = "Sea 2", Callback = function() FireRemote("TravelDressrosa") end})
-TeleTab:AddButton({Name = "Sea 3", Callback = function() FireRemote("TravelZou") end})
-
-OrionLib:Init()
+print("Aimbot Script Loaded Successfully!")
