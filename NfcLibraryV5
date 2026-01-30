@@ -5,3 +5,9 @@ local Window = WindUI:CreateWindow({
     Icon = "pickaxe", -- lucide icon. optional
     Author = "Badal upadhyay", -- optional
 })
+
+local AimbotTab = Window:Tab({
+    Title = "Aimbot",
+    Icon = "bird", -- optional
+    Locked = false,
+})
