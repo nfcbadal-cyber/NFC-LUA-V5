@@ -8,6 +8,18 @@ local Window = WindUI:CreateWindow({
 
 local AimbotTab = Window:Tab({
     Title = "Aimbot",
-    Icon = "bird", -- optional
+    Icon = "circle-check-big", -- optional
     Locked = false,
+})
+
+local Toggle = AimbotTab:Toggle({
+    Title = "Toggle",
+    Desc = "Toggle Description",
+    Icon = "circle-check-big",
+    Type = "Checkbox",
+    Value = false, -- default value
+    Callback = function(state)
+        SetAntiStun(state) 
+        print("Toggle Activated" .. tostring(state))
+    end
 })
