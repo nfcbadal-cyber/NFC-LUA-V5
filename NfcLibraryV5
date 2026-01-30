@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "NFC Aimbot",
+    Title = "NFC Aimbot - REAL Edition",
     Icon = "crosshair",
     Author = "Badal upadhyay",
 })
@@ -19,44 +19,36 @@ local Settings = {
     Aimbot = {
         Enabled = false,
         Aimlock = false,
+        AimlockKey = Enum.KeyCode.E, -- Hold E to lock
         TeamCheck = true,
         VisibleCheck = true,
         FOVRadius = 100,
         Smoothness = 0.1,
         AimPart = "Head",
-        IgnoreList = {}
+        PredictionStrength = 0.12
     },
     Visuals = {
         ESPEnabled = false,
         TracersEnabled = false,
         FOVCircle = false,
-        Chams = false,
-        BoxESP = false
+        LockedTarget = false -- Show locked target highlight
     },
     Movement = {
-        SpeedBoost = false,
-        JumpPower = false,
         NoClip = false,
         InfiniteJump = false,
         Fly = false,
-        OriginalSpeed = 16,
-        OriginalJump = 50,
         FlySpeed = 50
-    },
-    Combat = {
-        NoRecoil = false,
-        RapidFire = false
-    },
-    Misc = {
-        AntiAFK = false,
-        RemoveFog = false,
-        Fullbright = false
     }
 }
+
+-- Aimlock State
+local LockedTarget = nil
+local AimlockActive = false
 
 -- ESP Storage
 local ESPObjects = {}
 local TracerObjects = {}
+local LockedHighlight = nil
 
 -- FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -68,15 +60,17 @@ FOVCircle.Visible = false
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Transparency = 1
 
--- Store original values
-local function StoreOriginalValues()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        Settings.Movement.OriginalSpeed = LocalPlayer.Character.Humanoid.WalkSpeed
-        Settings.Movement.OriginalJump = LocalPlayer.Character.Humanoid.JumpPower
-    end
-end
+-- Locked Target Indicator
+local LockedIndicator = Drawing.new("Circle")
+LockedIndicator.Thickness = 3
+LockedIndicator.NumSides = 30
+LockedIndicator.Radius = 15
+LockedIndicator.Filled = false
+LockedIndicator.Visible = false
+LockedIndicator.Color = Color3.fromRGB(255, 0, 0)
+LockedIndicator.Transparency = 1
 
--- Get Closest Player
+-- Get Closest Player to Mouse
 local function GetClosestPlayer()
     local ClosestPlayer = nil
     local ShortestDistance = Settings.Aimbot.FOVRadius
@@ -124,19 +118,110 @@ local function GetClosestPlayer()
     return ClosestPlayer
 end
 
+-- Check if locked target is still valid
+local function IsTargetValid(target)
+    if not target or not target.Character then
+        return false
+    end
+    
+    if not target.Character:FindFirstChild(Settings.Aimbot.AimPart) then
+        return false
+    end
+    
+    -- Team check
+    if Settings.Aimbot.TeamCheck and target.Team == LocalPlayer.Team then
+        return false
+    end
+    
+    -- Visibility check
+    if Settings.Aimbot.VisibleCheck then
+        local CharacterPart = target.Character[Settings.Aimbot.AimPart]
+        local RaycastParams = RaycastParams.new()
+        RaycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        
+        local Direction = (CharacterPart.Position - Camera.CFrame.Position)
+        local RayResult = workspace:Raycast(Camera.CFrame.Position, Direction, RaycastParams)
+        
+        if not RayResult or not RayResult.Instance:IsDescendantOf(target.Character) then
+            return false
+        end
+    end
+    
+    return true
+end
+
+-- Aim at target with prediction
+local function AimAtTarget(target, instant)
+    if not target or not target.Character or not target.Character:FindFirstChild(Settings.Aimbot.AimPart) then
+        return
+    end
+    
+    local TargetPart = target.Character[Settings.Aimbot.AimPart]
+    local TargetPosition = TargetPart.Position
+    
+    -- Velocity prediction
+    if TargetPart:IsA("BasePart") and TargetPart.AssemblyLinearVelocity then
+        local Velocity = TargetPart.AssemblyLinearVelocity
+        TargetPosition = TargetPosition + (Velocity * Settings.Aimbot.PredictionStrength)
+    end
+    
+    local CameraPosition = Camera.CFrame.Position
+    local NewCFrame = CFrame.new(CameraPosition, TargetPosition)
+    
+    if instant then
+        -- Aimlock - instant snap
+        Camera.CFrame = NewCFrame
+    else
+        -- Smooth aimbot
+        Camera.CFrame = Camera.CFrame:Lerp(NewCFrame, Settings.Aimbot.Smoothness)
+    end
+end
+
+-- Update locked target indicator
+local function UpdateLockedIndicator()
+    if LockedTarget and LockedTarget.Character and LockedTarget.Character:FindFirstChild(Settings.Aimbot.AimPart) then
+        local TargetPart = LockedTarget.Character[Settings.Aimbot.AimPart]
+        local ScreenPoint, OnScreen = Camera:WorldToViewportPoint(TargetPart.Position)
+        
+        if OnScreen then
+            LockedIndicator.Position = Vector2.new(ScreenPoint.X, ScreenPoint.Y)
+            LockedIndicator.Visible = true
+        else
+            LockedIndicator.Visible = false
+        end
+    else
+        LockedIndicator.Visible = false
+    end
+end
+
+-- Update locked highlight
+local function UpdateLockedHighlight()
+    -- Remove old highlight
+    if LockedHighlight then
+        LockedHighlight:Destroy()
+        LockedHighlight = nil
+    end
+    
+    -- Create new highlight if target exists
+    if LockedTarget and LockedTarget.Character and Settings.Visuals.LockedTarget then
+        LockedHighlight = Instance.new("Highlight")
+        LockedHighlight.Parent = LockedTarget.Character
+        LockedHighlight.FillColor = Color3.fromRGB(255, 0, 0)
+        LockedHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        LockedHighlight.FillTransparency = 0.5
+        LockedHighlight.OutlineTransparency = 0
+        LockedHighlight.Name = "LockedTarget_Highlight"
+    end
+end
+
 -- ESP Functions
 local function CreateESP(player)
     if ESPObjects[player] then return end
     
-    local esp = {
-        Highlight = nil,
-        Box = nil,
-        Name = nil,
-        Distance = nil
-    }
+    local esp = {}
     
-    -- Highlight (Chams)
-    if Settings.Visuals.Chams then
+    if player.Character then
         local highlight = Instance.new("Highlight")
         highlight.Parent = player.Character
         highlight.FillColor = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(255, 0, 0)
@@ -159,25 +244,8 @@ local function RemoveESP(player)
     end
 end
 
-local function UpdateESP()
-    for player, esp in pairs(ESPObjects) do
-        if not player.Character or not Settings.Visuals.ESPEnabled then
-            RemoveESP(player)
-        end
-    end
-    
-    if Settings.Visuals.ESPEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                CreateESP(player)
-            end
-        end
-    end
-end
-
 -- Tracers
 local function UpdateTracers()
-    -- Clear old tracers
     for _, tracer in pairs(TracerObjects) do
         tracer:Remove()
     end
@@ -194,8 +262,16 @@ local function UpdateTracers()
                 local tracer = Drawing.new("Line")
                 tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                 tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                tracer.Color = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(255, 0, 0)
-                tracer.Thickness = 1
+                
+                -- Red if locked target
+                if player == LockedTarget then
+                    tracer.Color = Color3.fromRGB(255, 0, 0)
+                    tracer.Thickness = 2
+                else
+                    tracer.Color = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+                    tracer.Thickness = 1
+                end
+                
                 tracer.Transparency = 1
                 tracer.Visible = true
                 table.insert(TracerObjects, tracer)
@@ -204,7 +280,7 @@ local function UpdateTracers()
     end
 end
 
--- NoClip Function
+-- NoClip
 local NoClipConnection = nil
 local function ToggleNoClip(state)
     if state then
@@ -222,7 +298,6 @@ local function ToggleNoClip(state)
             NoClipConnection:Disconnect()
             NoClipConnection = nil
         end
-        -- Restore collisions
         if LocalPlayer.Character then
             for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
@@ -233,10 +308,8 @@ local function ToggleNoClip(state)
     end
 end
 
--- Fly Function
+-- Fly
 local FlyConnection = nil
-local FlyKeybinds = {}
-
 local function ToggleFly(state)
     if state then
         local Character = LocalPlayer.Character
@@ -301,24 +374,7 @@ local function ToggleFly(state)
     end
 end
 
--- Anti AFK
-local AntiAFKConnection = nil
-local function ToggleAntiAFK(state)
-    if state then
-        local VirtualUser = game:GetService("VirtualUser")
-        AntiAFKConnection = LocalPlayer.Idled:Connect(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-    else
-        if AntiAFKConnection then
-            AntiAFKConnection:Disconnect()
-            AntiAFKConnection = nil
-        end
-    end
-end
-
--- Player events for ESP
+-- Player events
 Players.PlayerAdded:Connect(function(player)
     if Settings.Visuals.ESPEnabled then
         player.CharacterAdded:Connect(function()
@@ -330,17 +386,37 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     RemoveESP(player)
+    if LockedTarget == player then
+        LockedTarget = nil
+        UpdateLockedHighlight()
+    end
 end)
 
--- Store original values on character spawn
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(0.5)
-    StoreOriginalValues()
+-- Aimlock key input
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Settings.Aimbot.AimlockKey and Settings.Aimbot.Aimlock then
+        AimlockActive = true
+        
+        -- Lock onto closest target
+        local target = GetClosestPlayer()
+        if target then
+            LockedTarget = target
+            UpdateLockedHighlight()
+            print("🔒 Locked onto: " .. target.Name)
+        end
+    end
 end)
 
-if LocalPlayer.Character then
-    StoreOriginalValues()
-end
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Settings.Aimbot.AimlockKey then
+        AimlockActive = false
+        LockedTarget = nil
+        UpdateLockedHighlight()
+        print("🔓 Aimlock released")
+    end
+end)
 
 -- ═══════════════════════════════════════════════════════════
 -- TAB 1: AIMBOT
@@ -352,7 +428,7 @@ local AimbotTab = Window:Tab({
 
 AimbotTab:Toggle({
     Title = "Enable Aimbot",
-    Desc = "Smooth aim assistance",
+    Desc = "Smooth aim when aiming",
     Icon = "target",
     Type = "Checkbox",
     Value = false,
@@ -362,19 +438,36 @@ AimbotTab:Toggle({
 })
 
 AimbotTab:Toggle({
-    Title = "Aimlock",
-    Desc = "Hard lock onto target",
+    Title = "Aimlock (Hold E)",
+    Desc = "Lock onto nearest enemy when holding E",
     Icon = "lock",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
         Settings.Aimbot.Aimlock = state
+        if not state then
+            LockedTarget = nil
+            AimlockActive = false
+            UpdateLockedHighlight()
+        end
+    end
+})
+
+AimbotTab:Toggle({
+    Title = "Show Locked Target",
+    Desc = "Highlight locked enemy in red",
+    Icon = "eye",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        Settings.Visuals.LockedTarget = state
+        UpdateLockedHighlight()
     end
 })
 
 AimbotTab:Toggle({
     Title = "Team Check",
-    Desc = "Ignore teammates",
+    Desc = "Don't target teammates",
     Icon = "users",
     Type = "Checkbox",
     Value = true,
@@ -385,7 +478,7 @@ AimbotTab:Toggle({
 
 AimbotTab:Toggle({
     Title = "Visibility Check",
-    Desc = "Only aim at visible enemies",
+    Desc = "Only aim at visible targets",
     Icon = "eye",
     Type = "Checkbox",
     Value = true,
@@ -396,7 +489,7 @@ AimbotTab:Toggle({
 
 AimbotTab:Slider({
     Title = "FOV Radius",
-    Desc = "Detection circle size",
+    Desc = "Detection circle size (pixels)",
     Icon = "circle-dot",
     Min = 50,
     Max = 500,
@@ -409,7 +502,7 @@ AimbotTab:Slider({
 
 AimbotTab:Slider({
     Title = "Smoothness",
-    Desc = "Lower = smoother (0.01-1)",
+    Desc = "Aim speed (lower = smoother)",
     Icon = "waves",
     Min = 0.01,
     Max = 1,
@@ -419,11 +512,23 @@ AimbotTab:Slider({
     end
 })
 
+AimbotTab:Slider({
+    Title = "Prediction",
+    Desc = "Velocity prediction strength",
+    Icon = "zap",
+    Min = 0,
+    Max = 0.5,
+    Default = 0.12,
+    Callback = function(value)
+        Settings.Aimbot.PredictionStrength = value
+    end
+})
+
 AimbotTab:Dropdown({
     Title = "Aim Part",
     Desc = "Target body part",
     Icon = "scan",
-    Options = {"Head", "Torso", "HumanoidRootPart", "UpperTorso", "LowerTorso"},
+    Options = {"Head", "UpperTorso", "HumanoidRootPart", "Torso"},
     Default = "Head",
     Callback = function(option)
         Settings.Aimbot.AimPart = option
@@ -439,14 +544,13 @@ local VisualsTab = Window:Tab({
 })
 
 VisualsTab:Toggle({
-    Title = "ESP / Chams",
-    Desc = "Highlight players through walls",
+    Title = "Player ESP",
+    Desc = "Highlight all players",
     Icon = "radar",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
         Settings.Visuals.ESPEnabled = state
-        Settings.Visuals.Chams = state
         
         if state then
             for _, player in pairs(Players:GetPlayers()) do
@@ -464,7 +568,7 @@ VisualsTab:Toggle({
 
 VisualsTab:Toggle({
     Title = "Tracers",
-    Desc = "Lines from screen to players",
+    Desc = "Lines to all players",
     Icon = "git-branch",
     Type = "Checkbox",
     Value = false,
@@ -481,7 +585,7 @@ VisualsTab:Toggle({
 
 VisualsTab:Toggle({
     Title = "FOV Circle",
-    Desc = "Show aimbot detection radius",
+    Desc = "Show aimbot radius",
     Icon = "circle",
     Type = "Checkbox",
     Value = false,
@@ -492,28 +596,26 @@ VisualsTab:Toggle({
 })
 
 VisualsTab:Toggle({
-    Title = "Remove Fog",
-    Desc = "Clear all fog effects",
-    Icon = "cloud-off",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        Settings.Misc.RemoveFog = state
-        Lighting.FogEnd = state and 100000 or 1000
-    end
-})
-
-VisualsTab:Toggle({
     Title = "Fullbright",
-    Desc = "Maximum world brightness",
+    Desc = "Maximum brightness",
     Icon = "sun",
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
-        Settings.Misc.Fullbright = state
         Lighting.Brightness = state and 3 or 1
         Lighting.Ambient = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(128, 128, 128)
         Lighting.OutdoorAmbient = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(128, 128, 128)
+    end
+})
+
+VisualsTab:Toggle({
+    Title = "Remove Fog",
+    Desc = "Clear all fog",
+    Icon = "cloud-off",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        Lighting.FogEnd = state and 100000 or 1000
     end
 })
 
@@ -527,13 +629,12 @@ local MovementTab = Window:Tab({
 
 MovementTab:Slider({
     Title = "Walk Speed",
-    Desc = "Adjust movement speed",
+    Desc = "Movement speed",
     Icon = "gauge",
     Min = 16,
     Max = 200,
     Default = 16,
     Callback = function(value)
-        Settings.Movement.SpeedBoost = (value > 16)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.WalkSpeed = value
         end
@@ -542,13 +643,12 @@ MovementTab:Slider({
 
 MovementTab:Slider({
     Title = "Jump Power",
-    Desc = "Adjust jump height",
+    Desc = "Jump height",
     Icon = "arrow-up",
     Min = 50,
     Max = 200,
     Default = 50,
     Callback = function(value)
-        Settings.Movement.JumpPower = (value > 50)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.JumpPower = value
         end
@@ -569,7 +669,7 @@ MovementTab:Toggle({
 
 MovementTab:Toggle({
     Title = "Infinite Jump",
-    Desc = "Jump in mid-air",
+    Desc = "Jump in air",
     Icon = "arrow-up-circle",
     Type = "Checkbox",
     Value = false,
@@ -579,8 +679,8 @@ MovementTab:Toggle({
 })
 
 MovementTab:Toggle({
-    Title = "Fly",
-    Desc = "Fly using WASD + Space/Shift",
+    Title = "Fly (WASD + Space/Shift)",
+    Desc = "Fly around the map",
     Icon = "plane",
     Type = "Checkbox",
     Value = false,
@@ -592,7 +692,7 @@ MovementTab:Toggle({
 
 MovementTab:Slider({
     Title = "Fly Speed",
-    Desc = "Adjust flying speed",
+    Desc = "Flight movement speed",
     Icon = "wind",
     Min = 10,
     Max = 200,
@@ -610,31 +710,9 @@ local CombatTab = Window:Tab({
     Icon = "sword",
 })
 
-CombatTab:Toggle({
-    Title = "No Recoil (Camera)",
-    Desc = "Reduces camera shake",
-    Icon = "shield",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state)
-        Settings.Combat.NoRecoil = state
-        -- This hooks camera manipulation
-        if state then
-            local OldNamecall
-            OldNamecall = hookmetamethod(game, "__namecall", function(Self, ...)
-                local Method = getnamecallmethod()
-                if Method == "FireServer" and tostring(Self) == "Recoil" then
-                    return wait(9e9)
-                end
-                return OldNamecall(Self, ...)
-            end)
-        end
-    end
-})
-
 CombatTab:Button({
     Title = "Reset Character",
-    Desc = "Respawn your character",
+    Desc = "Respawn",
     Icon = "refresh-cw",
     Callback = function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -645,7 +723,7 @@ CombatTab:Button({
 
 CombatTab:Button({
     Title = "Remove Accessories",
-    Desc = "Delete all accessories",
+    Desc = "Delete all hats/accessories",
     Icon = "trash",
     Callback = function()
         if LocalPlayer.Character then
@@ -667,21 +745,6 @@ local PlayerTab = Window:Tab({
 })
 
 PlayerTab:Slider({
-    Title = "Health",
-    Desc = "Set character health",
-    Icon = "heart",
-    Min = 0,
-    Max = 500,
-    Default = 100,
-    Callback = function(value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local humanoid = LocalPlayer.Character.Humanoid
-            humanoid.Health = math.clamp(value, 0, humanoid.MaxHealth)
-        end
-    end
-})
-
-PlayerTab:Slider({
     Title = "Hip Height",
     Desc = "Character elevation",
     Icon = "move-vertical",
@@ -691,22 +754,6 @@ PlayerTab:Slider({
     Callback = function(value)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.HipHeight = value
-        end
-    end
-})
-
-PlayerTab:Button({
-    Title = "God Mode (Attempt)",
-    Desc = "Try to prevent health changes",
-    Icon = "shield-check",
-    Callback = function()
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local humanoid = LocalPlayer.Character.Humanoid
-            humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-                if humanoid.Health < humanoid.MaxHealth then
-                    humanoid.Health = humanoid.MaxHealth
-                end
-            end)
         end
     end
 })
@@ -726,14 +773,19 @@ MiscTab:Toggle({
     Type = "Checkbox",
     Value = false,
     Callback = function(state)
-        Settings.Misc.AntiAFK = state
-        ToggleAntiAFK(state)
+        if state then
+            local VirtualUser = game:GetService("VirtualUser")
+            LocalPlayer.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end
     end
 })
 
 MiscTab:Button({
     Title = "Teleport to Spawn",
-    Desc = "Return to spawn location",
+    Desc = "Return to spawn",
     Icon = "map-pin",
     Callback = function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -744,7 +796,7 @@ MiscTab:Button({
 
 MiscTab:Button({
     Title = "Rejoin Server",
-    Desc = "Reconnect to game",
+    Desc = "Reconnect",
     Icon = "rotate-ccw",
     Callback = function()
         game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
@@ -753,11 +805,10 @@ MiscTab:Button({
 
 MiscTab:Button({
     Title = "Copy Game ID",
-    Desc = "Copy PlaceId to clipboard",
+    Desc = "Copy PlaceId",
     Icon = "copy",
     Callback = function()
         setclipboard(tostring(game.PlaceId))
-        print("Game ID copied: " .. game.PlaceId)
     end
 })
 
@@ -765,36 +816,37 @@ MiscTab:Button({
 -- MAIN LOOPS
 -- ═══════════════════════════════════════════════════════════
 
--- Aimbot Loop
 RunService.RenderStepped:Connect(function()
-    -- Update FOV Circle position
+    -- Update FOV Circle
     if Settings.Visuals.FOVCircle then
         local MousePos = UserInputService:GetMouseLocation()
         FOVCircle.Position = MousePos
     end
     
-    -- Aimbot
-    if Settings.Aimbot.Enabled or Settings.Aimbot.Aimlock then
-        local Target = GetClosestPlayer()
-        
-        if Target and Target.Character and Target.Character:FindFirstChild(Settings.Aimbot.AimPart) then
-            local TargetPart = Target.Character[Settings.Aimbot.AimPart]
-            local CameraPosition = Camera.CFrame.Position
-            local TargetPosition = TargetPart.Position
-            
-            -- Predict movement (basic)
-            if TargetPart:IsA("BasePart") and TargetPart.AssemblyLinearVelocity then
-                TargetPosition = TargetPosition + (TargetPart.AssemblyLinearVelocity * 0.1)
-            end
-            
-            local NewCFrame = CFrame.new(CameraPosition, TargetPosition)
-            
-            if Settings.Aimbot.Aimlock then
-                Camera.CFrame = NewCFrame
-            else
-                Camera.CFrame = Camera.CFrame:Lerp(NewCFrame, Settings.Aimbot.Smoothness)
-            end
+    -- AIMLOCK LOGIC
+    if Settings.Aimbot.Aimlock and AimlockActive and LockedTarget then
+        -- Check if target is still valid
+        if IsTargetValid(LockedTarget) then
+            -- HARD LOCK - instant snap
+            AimAtTarget(LockedTarget, true)
+        else
+            -- Target invalid, release lock
+            LockedTarget = nil
+            UpdateLockedHighlight()
         end
+    end
+    
+    -- AIMBOT LOGIC (smooth aim)
+    if Settings.Aimbot.Enabled and not AimlockActive then
+        local Target = GetClosestPlayer()
+        if Target then
+            AimAtTarget(Target, false)
+        end
+    end
+    
+    -- Update locked indicator
+    if Settings.Aimbot.Aimlock then
+        UpdateLockedIndicator()
     end
     
     -- Update Tracers
@@ -810,35 +862,8 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Character respawn handling
-LocalPlayer.CharacterAdded:Connect(function(character)
-    wait(0.5)
-    
-    -- Reapply speed/jump if needed
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    if Settings.Movement.SpeedBoost then
-        humanoid.WalkSpeed = Settings.Movement.OriginalSpeed * 2
-    end
-    
-    if Settings.Movement.JumpPower then
-        humanoid.JumpPower = Settings.Movement.OriginalJump * 2
-    end
-    
-    -- Reapply NoClip if enabled
-    if Settings.Movement.NoClip then
-        ToggleNoClip(true)
-    end
-    
-    -- Reapply Fly if enabled
-    if Settings.Movement.Fly then
-        wait(1)
-        ToggleFly(true)
-    end
-end)
-
 print("═══════════════════════════════════════════")
-print("NFC Aimbot Loaded Successfully!")
-print("Features: Aimbot, ESP, Fly, NoClip, & More")
-print("All features are client-sided and working!")
+print("✅ NFC Aimbot REAL Edition Loaded!")
+print("🔒 AIMLOCK: Hold E to lock onto nearest enemy")
+print("🎯 AIMBOT: Enable for smooth aim assist")
 print("═══════════════════════════════════════════")
